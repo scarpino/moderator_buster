@@ -3,7 +3,7 @@ library(shiny)
 
 shinyUI(fluidPage(
     mainPanel(
-      img(src="buster.png", width = 400, height = 100)
+      img(src="buster.png", width = 300, height = 150)
     ),
     tabsetPanel(
       tabPanel("Abtract Prediction",
@@ -13,10 +13,13 @@ shinyUI(fluidPage(
                    actionButton("Submit","Submit")
                  ),
                  column(4,
-                        plotOutput("plot1", width = 600, height = 500)
+                        plotOutput("plot1", width = 500, height = 450),
+                        verbatimTextOutput("results_text")
                   ),
                  column(4,
-                        tableOutput("tab1")
+                        h5("Current Out-of-Sample Accuracy"),
+                        tableOutput("tab1"),
+                        plotOutput("plot2")
                  )
                )
       )

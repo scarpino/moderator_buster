@@ -60,6 +60,10 @@ vectorize_sequences <- function(sequences, allowed_words, filler_word) {
   return(results)
 }
 
+get_max <- function(x){
+  return(which(x == max(x, na.rm = TRUE)))
+}
+
 #data
 load("../data/1518093618.77705arxiv_2017_10k.RData")
 
@@ -135,11 +139,24 @@ results <- model %>% evaluate(x_test, y_test)
 model %>% predict(x_test[1:2,])
 y_test[1:2,]
 
+#eval oos
+results_oos <- model %>% evaluate(x_test, y_test)
+pred_oos <- model %>% predict(x_test)
+
+true_val <- apply(y_test, 1, get_max)
+pred_val <- apply(pred_oos, 1, get_max)
+pred_conf <- table(true_val, pred_val)
+#prop_cor <- diag(pred_conf)/colSums(y_test)
+rich_cor <- t(pred_oos) %*% y_test
+rich_prop_cor <- diag(rich_cor)/colSums(y_test) 
+
 #saving model
 save_model_hdf5(model, filepath = "../models/arxiv_2017_10k", overwrite = TRUE, include_optimizer = TRUE)
 
 save(x_test, file = "../moderator_buster/x_test.RData")
 save(y_test, file = "../moderator_buster/y_test.RData")
+save(results_oos, file = "../moderator_buster/results_OOS.RData")
+save(rich_prop_cor, file = "../moderator_buster/rich_prop_cor.RData")
 
 possible_categories <- unique(y_use)
 save(possible_categories, file = "../moderator_buster/possible_categories.RData")

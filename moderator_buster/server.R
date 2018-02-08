@@ -61,18 +61,21 @@ vectorize_sequences <- function(sequences, allowed_words, filler_word) {
 
 #code
 model <- load_model_hdf5("arxiv_2017_10k", custom_objects = NULL, compile = TRUE)
-load("x_test.RData")
-load("y_test.RData")
 load("possible_categories.RData")
 load("allowed_words.RData")
-results <- model %>% evaluate(x_test, y_test)
+load("rich_prop_cor.RData")
+load("results_OOS.RData")
 
 shinyServer(function(input, output) {
   
   output$tab1 <- renderTable({
-    tab <- data.frame(results$loss, results$acc)
+    tab <- data.frame(results_oos$loss, results_oos$acc)
     colnames(tab) <- c("OOS Loss", "OOS Acc")
     tab
+  })
+  
+  output$plot2 <- renderPlot({
+    barplot(rich_prop_cor[order(rich_prop_cor, decreasing = TRUE)], names = possible_categories[order(rich_prop_cor, decreasing = TRUE)], ylim = c(0,1), ylab = "OOS Accuracy", main = "OOS Accuracy by category", las = 2, cex.names = 0.8)
   })
   
   template_selection_results <- eventReactive(input$Submit, {
@@ -101,6 +104,18 @@ shinyServer(function(input, output) {
     results <- template_selection_results()
     predictions <- results$prediction
     barplot(predictions[order(predictions, decreasing = TRUE)], names = possible_categories[order(predictions, decreasing = TRUE)], las = 2, ylab = "Proportion fit to category", main = "arXiv Category Classification")
+  })
+  
+  output$results_text <- renderText({
+    results <- template_selection_results()
+    predictions <- results$prediction
+    best_pred <- order(predictions, decreasing = TRUE)[1]
+    if(predictions[best_pred] < 0.25){
+      text_res <- "I wouldn't submit this to the arXiv"
+    }else{
+      text_res <- paste0("I would submit this to the ", possible_categories[best_pred], " category.")
+    }
+    text_res
   })
   
 })
