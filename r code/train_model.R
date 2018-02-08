@@ -1,7 +1,20 @@
 #SVScarpino
 
+#notes
+#this was super helpful for R syntax, which isn't well documented yet https://tensorflow.rstudio.com/keras/articles/examples/imdb_cnn.html
+
 #libraries
 library(keras)
+
+#global params
+text_length <- 150 #this is the total number of words required in the abstract (will trunc/fill to this number)
+max_features <- 15000
+batch_size <- 100
+embedding_dims <- 50
+filters <- 250
+kernel_size <- 3
+epochs <- 20
+layer_drop <- 0.2
 
 #acc functions
 remove_punc <- function(x, reg_ex = '[[:punct:]]'){
@@ -60,6 +73,19 @@ vectorize_sequences <- function(sequences, allowed_words, filler_word) {
   return(results)
 }
 
+positionize_sequences <- function(sequences, allowed_words, filler_word, text_length) {
+  #I shamelessly stole some of this from https://tensorflow.rstudio.com/blog/text-classification-with-keras.html
+  # Creates an all-zero matrix of shape (length(sequences), dimension)
+  allowed_words <- c(allowed_words, filler_word)
+  results <- matrix(0, nrow = length(sequences), ncol = text_length)
+  for (i in 1:length(sequences)){
+    words_i <- extract_words(sequences[i])
+    mt_i <- match(words_i, allowed_words)
+    results[i, ] <- mt_i
+  }
+  return(results)
+}
+
 get_max <- function(x){
   return(which(x == max(x, na.rm = TRUE)))
 }
@@ -80,8 +106,8 @@ for(i in 1:nrow(arxiv_2017_10k)){
 corpus_words_list <- lapply(summaries_no_punc, extract_words)
 corpus_words <- unlist(corpus_words_list)
 word_counts <- table(corpus_words)
-if(length(word_counts) > 15000){
-  allowed_words <- c(names(word_counts[order(word_counts, decreasing = TRUE)])[1:5000], names(word_counts[order(word_counts, decreasing = FALSE)])[1:10000]) #sorry for this syntax
+if(length(word_counts) > max_features){
+  allowed_words <- c(names(word_counts[order(word_counts, decreasing = TRUE)])[1:(max_features*(1/3))], names(word_counts[order(word_counts, decreasing = FALSE)])[1:(max_features*(2/3))]) #sorry for this syntax
 }else{
   allowed_words <- names(word_counts)
 }
@@ -91,31 +117,34 @@ for(i in 1:length(summaries_no_punc)){
   filtered_summaries[i] <- filter_words(summaries_no_punc[i], allowed_words = allowed_words, replace_word = "STRONGCAT")
 }
  
-#3. truncate/pad to 150 words
+#3. truncate/pad to text_length words
 trunc_fill_words <- rep(NA, length(filtered_summaries))
 for(i in 1:length(filtered_summaries)){
-  trunc_fill_words[i] <- trunc_pad(filtered_summaries[i], n_words = 150, filler_word = "STRONGCAT")
+  trunc_fill_words[i] <- trunc_pad(filtered_summaries[i], n_words = text_length, filler_word = "STRONGCAT")
 }
 
 #4. Create y categories
 y_raw <- as.character(arxiv_2017_10k$primary_categories)
 y_use_list <- lapply(X = y_raw, FUN = make_categories)
 y_use <- unlist(y_use_list) 
+possible_categories <- unique(y_use)
 
 #5. split into training/testing and create a matrix with the words
 use_train <- sample(1:length(trunc_fill_words), length(trunc_fill_words)*0.8)
 
-x_train <- vectorize_sequences(sequences = trunc_fill_words[use_train], allowed_words = allowed_words, filler_word = "STRONGCAT") #this throws away a lot of information and won't allow for convolutions. Should fix later
-y_train <- vectorize_sequences(sequences = y_use[use_train], allowed_words = unique(y_use), filler_word = NULL)
+x_train <- positionize_sequences(sequences = trunc_fill_words[use_train], allowed_words = allowed_words, filler_word = "STRONGCAT", text_length = text_length) #this throws away a lot of information and won't allow for convolutions. Should fix later
+y_train <- vectorize_sequences(sequences = y_use[use_train], allowed_words = possible_categories, filler_word = NULL)
 
-x_test <- vectorize_sequences(sequences = trunc_fill_words[-use_train], allowed_words = allowed_words, filler_word = "STRONGCAT") 
-y_test <- vectorize_sequences(sequences = y_use[-use_train], allowed_words = unique(y_use), filler_word = NULL)
+x_test <- positionize_sequences(sequences = trunc_fill_words[-use_train], allowed_words = allowed_words, filler_word = "STRONGCAT", text_length = text_length) 
+y_test <- vectorize_sequences(sequences = y_use[-use_train], allowed_words = possible_categories, filler_word = NULL)
 
 #here we go
 model <- keras_model_sequential() %>% 
-  layer_dense(units = 16, activation = "relu", input_shape = c(15001)) %>% 
-  layer_dense(units = 16, activation = "relu") %>% 
-  layer_dense(units = 20, activation = "softmax")
+  layer_embedding(max_features+2, embedding_dims, input_length = text_length) %>% 
+  layer_dropout(layer_drop) %>%
+  layer_conv_1d(filters, kernel_size, padding = "valid", activation = "relu", strides = 1) %>%
+  layer_global_max_pooling_1d() %>%
+  layer_dense(units = length(possible_categories), activation = "softmax")
 
 model %>% compile(
   optimizer = "rmsprop",
@@ -127,8 +156,8 @@ model %>% compile(
 history <- model %>% fit(
   x_train,
   y_train,
-  epochs = 20,
-  batch_size = 512,
+  epochs = epochs,
+  batch_size = batch_size,
   validation_split = list(x_test, y_test)
 )
 
@@ -158,6 +187,5 @@ save(y_test, file = "../moderator_buster/y_test.RData")
 save(results_oos, file = "../moderator_buster/results_OOS.RData")
 save(rich_prop_cor, file = "../moderator_buster/rich_prop_cor.RData")
 
-possible_categories <- unique(y_use)
 save(possible_categories, file = "../moderator_buster/possible_categories.RData")
 save(allowed_words, file = "../moderator_buster/allowed_words.RData")
