@@ -100,7 +100,7 @@ shinyServer(function(input, output) {
   output$plot1 <- renderPlot({
     results <- template_selection_results()
     predictions <- results$prediction
-    barplot(predictions[order(predictions, decreasing = TRUE)], names = possible_categories[order(predictions, decreasing = TRUE)], las = 2)
+    barplot(predictions[order(predictions, decreasing = TRUE)], names = possible_categories[order(predictions, decreasing = TRUE)], las = 2, ylab = "Proportion fit to category", "arXiv Category Classification")
   })
   
 })
