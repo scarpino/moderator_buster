@@ -9,10 +9,11 @@ library(keras)
 #global params
 text_length <- 150 #this is the total number of words required in the abstract (will trunc/fill to this number)
 max_features <- 15000
-batch_size <- 100
+batch_size <- 500
 embedding_dims <- 50
+hidden_dims <- 150
 filters <- 250
-kernel_size <- 3
+kernel_size <- 2
 epochs <- 20
 layer_drop <- 0.2
 
@@ -132,7 +133,7 @@ possible_categories <- unique(y_use)
 #5. split into training/testing and create a matrix with the words
 use_train <- sample(1:length(trunc_fill_words), length(trunc_fill_words)*0.8)
 
-x_train <- positionize_sequences(sequences = trunc_fill_words[use_train], allowed_words = allowed_words, filler_word = "STRONGCAT", text_length = text_length) #this throws away a lot of information and won't allow for convolutions. Should fix later
+x_train <- positionize_sequences(sequences = trunc_fill_words[use_train], allowed_words = allowed_words, filler_word = "STRONGCAT", text_length = text_length) 
 y_train <- vectorize_sequences(sequences = y_use[use_train], allowed_words = possible_categories, filler_word = NULL)
 
 x_test <- positionize_sequences(sequences = trunc_fill_words[-use_train], allowed_words = allowed_words, filler_word = "STRONGCAT", text_length = text_length) 
@@ -144,6 +145,7 @@ model <- keras_model_sequential() %>%
   layer_dropout(layer_drop) %>%
   layer_conv_1d(filters, kernel_size, padding = "valid", activation = "relu", strides = 1) %>%
   layer_global_max_pooling_1d() %>%
+  layer_dense(hidden_dims) %>%
   layer_dense(units = length(possible_categories), activation = "softmax")
 
 model %>% compile(
@@ -181,6 +183,9 @@ rich_prop_cor <- diag(rich_cor)/colSums(y_test)
 
 #saving model
 save_model_hdf5(model, filepath = "../models/arxiv_2017_10k", overwrite = TRUE, include_optimizer = TRUE)
+
+#saving files for r shiny
+save_model_hdf5(model, filepath = "../moderator_buster/arxiv_2017_10k", overwrite = TRUE, include_optimizer = TRUE)
 
 save(x_test, file = "../moderator_buster/x_test.RData")
 save(y_test, file = "../moderator_buster/y_test.RData")
