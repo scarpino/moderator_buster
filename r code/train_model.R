@@ -7,14 +7,15 @@
 library(keras)
 
 #global params
+make_equal <- TRUE #sample with replacement to get equal numbers of categories
 text_length <- 150 #this is the total number of words required in the abstract (will trunc/fill to this number)
 max_features <- 15000
-batch_size <- 500
-embedding_dims <- 50
+batch_size <- 250
+embedding_dims <- 150
 hidden_dims <- 150
-filters <- 250
-kernel_size <- 2
-epochs <- 20
+filters <- 200
+kernel_size <- 4
+epochs <- 15
 layer_drop <- 0.2
 
 #acc functions
@@ -95,6 +96,7 @@ get_max <- function(x){
 load("../data/1518093618.77705arxiv_2017_10k.RData")
 
 #let's do some lazy pre-processing
+
 #1. remove punctuation
 summaries_no_punc <- rep(NA, length(arxiv_2017_10k$summaries))
 for(i in 1:nrow(arxiv_2017_10k)){
@@ -130,6 +132,22 @@ y_use_list <- lapply(X = y_raw, FUN = make_categories)
 y_use <- unlist(y_use_list) 
 possible_categories <- unique(y_use)
 
+#5. Make equal categories
+if(make_equal == TRUE){
+  equal_samp <- round(length(y_use)/length(possible_categories))
+  use_equalize <- c()
+  for(i in possible_categories){
+    pick_i <- sample(which(y_use == i), equal_samp, replace = TRUE)
+    use_equalize <- c(use_equalize, pick_i)
+  }
+  eval_oos_equalize <- which(! (1:length(y_use)) %in% use_equalize)
+  trunc_fill_words_oos_equalize <- positionize_sequences(sequences = trunc_fill_words[eval_oos_equalize], allowed_words = allowed_words, filler_word = "STRONGCAT", text_length = text_length) 
+  y_use_oos_equalize <- vectorize_sequences(sequences = y_use[eval_oos_equalize], allowed_words = possible_categories, filler_word = NULL)
+  trunc_fill_words <- trunc_fill_words[use_equalize]
+  y_use <- y_use[use_equalize]
+  
+}
+
 #5. split into training/testing and create a matrix with the words
 use_train <- sample(1:length(trunc_fill_words), length(trunc_fill_words)*0.8)
 
@@ -145,7 +163,7 @@ model <- keras_model_sequential() %>%
   layer_dropout(layer_drop) %>%
   layer_conv_1d(filters, kernel_size, padding = "valid", activation = "relu", strides = 1) %>%
   layer_global_max_pooling_1d() %>%
-  layer_dense(hidden_dims) %>%
+  #layer_dense(hidden_dims) %>%
   layer_dense(units = length(possible_categories), activation = "softmax")
 
 model %>% compile(
@@ -166,6 +184,12 @@ history <- model %>% fit(
 #validating on held out data
 results <- model %>% evaluate(x_test, y_test)
 
+results
+
+if(make_equal == TRUE){
+  results_oos_equalize <- model %>% evaluate(trunc_fill_words_oos_equalize, y_use_oos_equalize)
+  
+}
 #example for prediction
 model %>% predict(x_test[1:2,])
 y_test[1:2,]
