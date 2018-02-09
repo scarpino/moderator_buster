@@ -10,12 +10,12 @@ library(keras)
 make_equal <- TRUE #sample with replacement to get equal numbers of categories
 text_length <- 150 #this is the total number of words required in the abstract (will trunc/fill to this number)
 max_features <- 15000
-batch_size <- 250
-embedding_dims <- 150
+batch_size <- 600
+embedding_dims <- 200
 hidden_dims <- 150
-filters <- 200
+filters <- 250
 kernel_size <- 4
-epochs <- 15
+epochs <- 10
 layer_drop <- 0.2
 
 #acc functions
@@ -188,6 +188,7 @@ results
 
 if(make_equal == TRUE){
   results_oos_equalize <- model %>% evaluate(trunc_fill_words_oos_equalize, y_use_oos_equalize)
+  results_oos_equalize
   
 }
 #example for prediction
