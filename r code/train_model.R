@@ -7,15 +7,15 @@
 library(keras)
 
 #global params
-make_equal <- TRUE #sample with replacement to get equal numbers of categories
+make_equal <- FALSE #sample with replacement to get equal numbers of categories
 text_length <- 150 #this is the total number of words required in the abstract (will trunc/fill to this number)
 max_features <- 15000
-batch_size <- 450
+batch_size <- 512
 embedding_dims <- 150
 hidden_dims <- 150
 filters <- 250
-kernel_size <- 4
-epochs <- 20
+kernel_size <- 3
+epochs <- 10
 layer_drop <- 0.2
 
 #acc functions
@@ -163,7 +163,8 @@ model <- keras_model_sequential() %>%
   layer_dropout(layer_drop) %>%
   layer_conv_1d(filters, kernel_size, padding = "valid", activation = "relu", strides = 1) %>%
   layer_global_max_pooling_1d() %>%
-  #layer_dense(hidden_dims) %>%
+  layer_dense(units = 16, activation = "relu") %>%
+  layer_dropout(layer_drop) %>%
   layer_dense(units = length(possible_categories), activation = "softmax")
 
 model %>% compile(
@@ -190,6 +191,10 @@ if(make_equal == TRUE){
   results_oos_equalize <- model %>% evaluate(trunc_fill_words_oos_equalize, y_use_oos_equalize)
   results_oos_equalize
   
+  pred_oos_equalize <- model %>% predict(trunc_fill_words_oos_equalize)
+  rich_cor_oos_equalize <- t(pred_oos_equalize) %*% y_use_oos_equalize
+  rich_prop_cor_oos_equalize <- diag(rich_cor_oos_equalize)/colSums(y_use_oos_equalize) 
+  barplot(rich_prop_cor_oos_equalize[order(rich_prop_cor_oos_equalize, decreasing = TRUE)], names = possible_categories[order(rich_prop_cor_oos_equalize, decreasing = TRUE)], ylim = c(0,1), ylab = "OOS Accuracy", main = "OOS Accuracy by category", las = 2, cex.names = 0.8)
 }
 #example for prediction
 model %>% predict(x_test[1:2,])
@@ -205,6 +210,7 @@ pred_conf <- table(true_val, pred_val)
 #prop_cor <- diag(pred_conf)/colSums(y_test)
 rich_cor <- t(pred_oos) %*% y_test
 rich_prop_cor <- diag(rich_cor)/colSums(y_test) 
+barplot(rich_prop_cor[order(rich_prop_cor, decreasing = TRUE)], names = possible_categories[order(rich_prop_cor, decreasing = TRUE)], ylim = c(0,1), ylab = "OOS Accuracy", main = "OOS Accuracy by category", las = 2, cex.names = 0.8)
 
 #saving model
 save_model_hdf5(model, filepath = "../models/arxiv_2017_10k", overwrite = TRUE, include_optimizer = TRUE)
