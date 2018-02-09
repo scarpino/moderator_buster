@@ -10,12 +10,12 @@ library(keras)
 make_equal <- TRUE #sample with replacement to get equal numbers of categories
 text_length <- 150 #this is the total number of words required in the abstract (will trunc/fill to this number)
 max_features <- 15000
-batch_size <- 600
-embedding_dims <- 200
+batch_size <- 450
+embedding_dims <- 150
 hidden_dims <- 150
 filters <- 250
 kernel_size <- 4
-epochs <- 10
+epochs <- 20
 layer_drop <- 0.2
 
 #acc functions
