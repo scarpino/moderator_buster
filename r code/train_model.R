@@ -5,8 +5,8 @@ library(keras)
 
 #global parameters
 data_set <- "equalize_17" #switch to 10k17 to get the earlier, 10k data set
-max_features <- 15000
-epochs <- 15
+max_features <- 25000
+epochs <- 10
 batch_size <- 500
 layer_drop <- 0.2
 
@@ -92,6 +92,12 @@ if(data_set == "10k17"){
 
 
 #let's do some lazy pre-processing
+#0. Remove NA categories
+rm_na <- which(is.na(arxiv_raw$primary_categories) == TRUE)
+if(length(rm_na) > 0){
+  arxiv_raw <- arxiv_raw[-rm_na,]
+}
+
 #1. remove punctuation
 summaries_no_punc <- rep(NA, length(arxiv_raw$summaries))
 for(i in 1:nrow(arxiv_raw)){
@@ -105,7 +111,7 @@ corpus_words_list <- lapply(summaries_no_punc, extract_words)
 corpus_words <- unlist(corpus_words_list)
 word_counts <- table(corpus_words)
 if(length(word_counts) > max_features){
-  allowed_words <- names(word_counts[order(word_counts, decreasing = TRUE)])[1:max_features]
+  allowed_words <- names(word_counts[order(word_counts, decreasing = TRUE)])[20:(max_features+19)]
 }else{
   allowed_words <- names(word_counts)
 }
@@ -140,7 +146,8 @@ y_test <- vectorize_sequences(sequences = y_use[-use_train], allowed_words = pos
 model <- keras_model_sequential() %>% 
   layer_dense(units = length(possible_categories)*5, activation = "relu", input_shape = (max_features+1)) %>% 
   layer_dropout(layer_drop) %>%
-  layer_dense(units = length(possible_categories)*2, activation = "relu") %>% 
+  layer_dense(units = length(possible_categories)*4, activation = "relu") %>% 
+  layer_dropout(layer_drop) %>%
   layer_dense(units = length(possible_categories), activation = "softmax")
 
 model %>% compile(
@@ -180,6 +187,9 @@ results
 
 #saving model
 save_model_hdf5(model, filepath = "../models/arxiv_raw", overwrite = TRUE, include_optimizer = TRUE)
+
+#saving files for r shiny
+save_model_hdf5(model, filepath = "../moderator_buster/arxiv_raw", overwrite = TRUE, include_optimizer = TRUE)
 
 save(x_test, file = "../moderator_buster/x_test.RData")
 save(y_test, file = "../moderator_buster/y_test.RData")

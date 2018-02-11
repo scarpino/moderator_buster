@@ -105,7 +105,13 @@ shinyServer(function(input, output) {
   output$plot1 <- renderPlot({
     results <- template_selection_results()
     predictions <- results$prediction
-    barplot(predictions[order(predictions, decreasing = TRUE)], names = possible_categories[order(predictions, decreasing = TRUE)], las = 2, ylab = "Proportion fit to category", main = "arXiv Category Classification")
+    names_full <- possible_categories[order(predictions, decreasing = TRUE)]
+    names_trunc <- rep(NA, length(names_full))
+    for(i in 1:length(names_full)){
+      names_i <- unlist(strsplit(names_full[i], ":"))
+      names_trunc[i] <- names_i[length(names_i)]
+    }
+    barplot(predictions[order(predictions, decreasing = TRUE)], names = , las = 2, ylab = "Proportion fit to category", main = "arXiv Category Classification")
   })
   
   output$results_text <- renderText({
