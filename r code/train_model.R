@@ -8,7 +8,7 @@ data_set <- "equalize_17" #switch to 10k17 to get the earlier, 10k data set
 
 #acc functions
 remove_punc <- function(x, reg_ex = '[[:punct:]]'){
-  x_out <- gsub(reg_ex,'',x)
+  x_out <- gsub(reg_ex,' ',x)
   return(x_out)
 }
 
@@ -96,12 +96,12 @@ for(i in 1:nrow(arxiv_raw)){
   summaries_no_punc[i] <- no_new_line_no_punc.i
 }
 
-#2. filter on 5k most common and 10k least common words
+#2. filter 15k most common words
 corpus_words_list <- lapply(summaries_no_punc, extract_words)
 corpus_words <- unlist(corpus_words_list)
 word_counts <- table(corpus_words)
 if(length(word_counts) > 15000){
-  allowed_words <- c(names(word_counts[order(word_counts, decreasing = TRUE)])[1:5000], names(word_counts[order(word_counts, decreasing = FALSE)])[1:10000]) #sorry for this syntax
+  allowed_words <- names(word_counts[order(word_counts, decreasing = TRUE)])[1:15000]
 }else{
   allowed_words <- names(word_counts)
 }
@@ -171,6 +171,7 @@ pred_conf <- table(true_val, pred_val)
 rich_cor <- t(pred_oos) %*% y_test
 rich_prop_cor <- diag(rich_cor)/colSums(y_test) 
 barplot(rich_prop_cor[order(rich_prop_cor, decreasing = TRUE)], names = possible_categories[order(rich_prop_cor, decreasing = TRUE)], ylim = c(0,1), ylab = "OOS Accuracy", main = "OOS Accuracy by category", las = 2, cex.names = 0.8)
+results
 
 #saving model
 save_model_hdf5(model, filepath = "../models/arxiv_raw", overwrite = TRUE, include_optimizer = TRUE)

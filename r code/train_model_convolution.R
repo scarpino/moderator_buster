@@ -7,6 +7,7 @@
 library(keras)
 
 #global params
+data_set <- "equalize_17" #switch to 10k17 to get the earlier, 10k data set
 make_equal <- FALSE #sample with replacement to get equal numbers of categories
 text_length <- 150 #this is the total number of words required in the abstract (will trunc/fill to this number)
 max_features <- 15000
@@ -93,24 +94,40 @@ get_max <- function(x){
 }
 
 #data
-load("../data/1518093618.77705arxiv_2017_10k.RData")
+data_set <- "equalize_17" #switch to 10k17 to get the earlier, 10k data set
+if(data_set == "10k17"){
+  load("../data/1518093618.77705arxiv_2017_10k.RData")
+  arxiv_raw <- arxiv_raw
+}else{
+  if(data_set == "equalize_17"){
+    load("../data/1518380587.94836_arxiv_2017_equalize.RData")
+    arxiv_raw <- data.frame(NA, NA)
+    colnames(arxiv_raw) <- c("primary_categories_i", "summaries_i")
+    for(i in 1:length(arxiv_2017_equalize)){
+      arxiv_raw <- rbind(arxiv_raw, arxiv_2017_equalize[[i]][,c("primary_categories_i", "summaries_i")])
+    }
+    colnames(arxiv_raw) <- c("primary_categories", "summaries") #I know this is lazy
+  }else{
+    stop("Data set not supported")
+  }
+}
 
 #let's do some lazy pre-processing
 
 #1. remove punctuation
-summaries_no_punc <- rep(NA, length(arxiv_2017_10k$summaries))
-for(i in 1:nrow(arxiv_2017_10k)){
-  no_new_line.i <- remove_punc(as.character(arxiv_2017_10k$summaries[i]), reg_ex = "\n") #note as.character because of forgetting factors earlier
+summaries_no_punc <- rep(NA, length(arxiv_raw$summaries))
+for(i in 1:nrow(arxiv_raw)){
+  no_new_line.i <- remove_punc(as.character(arxiv_raw$summaries[i]), reg_ex = "\n") #note as.character because of forgetting factors earlier
   no_new_line_no_punc.i <- remove_punc(no_new_line.i, reg_ex = '[[:punct:]]')
   summaries_no_punc[i] <- no_new_line_no_punc.i
 }
 
-#2. filter on 5k most common and 10k least common words
+#2. filter on max_features most common words
 corpus_words_list <- lapply(summaries_no_punc, extract_words)
 corpus_words <- unlist(corpus_words_list)
 word_counts <- table(corpus_words)
 if(length(word_counts) > max_features){
-  allowed_words <- c(names(word_counts[order(word_counts, decreasing = TRUE)])[1:(max_features*(1/3))], names(word_counts[order(word_counts, decreasing = FALSE)])[1:(max_features*(2/3))]) #sorry for this syntax
+  allowed_words <- names(word_counts[order(word_counts, decreasing = TRUE)])[1:max_features]
 }else{
   allowed_words <- names(word_counts)
 }
@@ -127,7 +144,7 @@ for(i in 1:length(filtered_summaries)){
 }
 
 #4. Create y categories
-y_raw <- as.character(arxiv_2017_10k$primary_categories)
+y_raw <- as.character(arxiv_raw$primary_categories)
 y_use_list <- lapply(X = y_raw, FUN = make_categories)
 y_use <- unlist(y_use_list) 
 possible_categories <- unique(y_use)
@@ -213,10 +230,10 @@ rich_prop_cor <- diag(rich_cor)/colSums(y_test)
 barplot(rich_prop_cor[order(rich_prop_cor, decreasing = TRUE)], names = possible_categories[order(rich_prop_cor, decreasing = TRUE)], ylim = c(0,1), ylab = "OOS Accuracy", main = "OOS Accuracy by category", las = 2, cex.names = 0.8)
 
 #saving model
-save_model_hdf5(model, filepath = "../models/arxiv_2017_10k", overwrite = TRUE, include_optimizer = TRUE)
+save_model_hdf5(model, filepath = "../models/arxiv_raw", overwrite = TRUE, include_optimizer = TRUE)
 
 #saving files for r shiny
-save_model_hdf5(model, filepath = "../moderator_buster/arxiv_2017_10k", overwrite = TRUE, include_optimizer = TRUE)
+save_model_hdf5(model, filepath = "../moderator_buster/arxiv_raw", overwrite = TRUE, include_optimizer = TRUE)
 
 save(x_test, file = "../moderator_buster/x_test.RData")
 save(y_test, file = "../moderator_buster/y_test.RData")
