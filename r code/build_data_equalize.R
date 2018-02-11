@@ -24,6 +24,13 @@ for(i in categories){
   xml_call <- paste0("http://export.arxiv.org/oai2?verb=ListRecords&from=2017-01-01&metadataPrefix=arXivRaw&set=",i)
   raw_results_i <- GET(url = xml_call)
   text_results_i <- rawToChar(raw_results_i$content)
+  
+  if(length(grep("Retry after 10 seconds", text_results_i)) > 0){
+    Sys.sleep(10) #need to pause for 10 sec. per request
+    raw_results_i <- GET(url = xml_call)
+    text_results_i <- rawToChar(raw_results_i$content)
+  }
+  
   xml_data_raw.i <- xmlToList(text_results_i)
   full_entries.i <- xml_data_raw.i$ListRecords
   
