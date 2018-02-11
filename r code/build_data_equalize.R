@@ -9,12 +9,15 @@ get_field <- function(x, field_name){
 }
 
 #iterating over entries
-starts <- seq(0, (300000-10000), length.out = 30)
+starts <- seq(0, (300000-1000), length.out = 300)
 xml_data <- list()
 for(i in starts){
   print(i)
-  xml_call <- paste0("http://export.arxiv.org/api/query?search_query=all:the&start=", i, "&max_results=10000&sortBy=submittedDate&sortOrder=descending")
-  data.i <- xmlParse(xml_call)
+  xml_call <- paste0("http://export.arxiv.org/api/query?search_query=all:the&start=", i, "&max_results=1000&sortBy=submittedDate&sortOrder=descending")
+  data.i <- try(xmlParse("http://export.arxiv.org/oai2?verb=ListRecords&from=2017-01-01&metadataPrefix=arXivRaw&set=physics"), silent = TRUE)
+  if(is(data.i)[1] == "try-error"){
+    next
+  }
   xml_data.i <- xmlToList(data.i)
   xml_data <- c(xml_data, xml_data.i)
   Sys.sleep(3) #need to pause for 3 sec. as per arXiv API documentation
