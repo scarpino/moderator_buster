@@ -5,6 +5,10 @@ library(keras)
 
 #global parameters
 data_set <- "equalize_17" #switch to 10k17 to get the earlier, 10k data set
+max_features <- 15000
+epochs <- 15
+batch_size <- 500
+layer_drop <- 0.2
 
 #acc functions
 remove_punc <- function(x, reg_ex = '[[:punct:]]'){
@@ -96,12 +100,12 @@ for(i in 1:nrow(arxiv_raw)){
   summaries_no_punc[i] <- no_new_line_no_punc.i
 }
 
-#2. filter 15k most common words
+#2. filter max_features most common words
 corpus_words_list <- lapply(summaries_no_punc, extract_words)
 corpus_words <- unlist(corpus_words_list)
 word_counts <- table(corpus_words)
-if(length(word_counts) > 15000){
-  allowed_words <- names(word_counts[order(word_counts, decreasing = TRUE)])[1:15000]
+if(length(word_counts) > max_features){
+  allowed_words <- names(word_counts[order(word_counts, decreasing = TRUE)])[1:max_features]
 }else{
   allowed_words <- names(word_counts)
 }
@@ -134,9 +138,10 @@ y_test <- vectorize_sequences(sequences = y_use[-use_train], allowed_words = pos
 
 #here we go
 model <- keras_model_sequential() %>% 
-  layer_dense(units = 16, activation = "relu", input_shape = c(15001)) %>% 
-  layer_dense(units = 16, activation = "relu") %>% 
-  layer_dense(units = 22, activation = "softmax")
+  layer_dense(units = length(possible_categories)*5, activation = "relu", input_shape = (max_features+1)) %>% 
+  layer_dropout(layer_drop) %>%
+  layer_dense(units = length(possible_categories)*2, activation = "relu") %>% 
+  layer_dense(units = length(possible_categories), activation = "softmax")
 
 model %>% compile(
   optimizer = "rmsprop",
@@ -148,8 +153,8 @@ model %>% compile(
 history <- model %>% fit(
   x_train,
   y_train,
-  epochs = 20,
-  batch_size = 512,
+  epochs = epochs,
+  batch_size = batch_size,
   validation_split = list(x_test, y_test)
 )
 

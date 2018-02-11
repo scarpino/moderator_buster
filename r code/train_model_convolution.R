@@ -21,7 +21,7 @@ layer_drop <- 0.2
 
 #acc functions
 remove_punc <- function(x, reg_ex = '[[:punct:]]'){
-  x_out <- gsub(reg_ex,'',x)
+  x_out <- gsub(reg_ex,' ',x)
   return(x_out)
 }
 
@@ -180,7 +180,7 @@ model <- keras_model_sequential() %>%
   layer_dropout(layer_drop) %>%
   layer_conv_1d(filters, kernel_size, padding = "valid", activation = "relu", strides = 1) %>%
   layer_global_max_pooling_1d() %>%
-  layer_dense(units = 16, activation = "relu") %>%
+  layer_dense(units = length(possible_categories)*5, activation = "relu") %>%
   layer_dropout(layer_drop) %>%
   layer_dense(units = length(possible_categories), activation = "softmax")
 
