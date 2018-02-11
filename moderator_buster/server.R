@@ -1,3 +1,5 @@
+#SVScarpino
+
 #libraries
 library(shiny)
 library(keras)
@@ -59,18 +61,6 @@ vectorize_sequences <- function(sequences, allowed_words, filler_word) {
   return(results)
 }
 
-positionize_sequences <- function(sequences, allowed_words, filler_word, text_length) {
-  #I shamelessly stole some of this from https://tensorflow.rstudio.com/blog/text-classification-with-keras.html
-  # Creates an all-zero matrix of shape (length(sequences), dimension)
-  allowed_words <- c(allowed_words, filler_word)
-  results <- matrix(0, nrow = length(sequences), ncol = text_length)
-  for (i in 1:length(sequences)){
-    words_i <- extract_words(sequences[i])
-    mt_i <- match(words_i, allowed_words)
-    results[i, ] <- mt_i
-  }
-  return(results)
-}
 #code
 model <- load_model_hdf5("arxiv_2017_10k", custom_objects = NULL, compile = TRUE)
 load("possible_categories.RData")
@@ -103,7 +93,7 @@ shinyServer(function(input, output) {
     trunc_fill_words <- trunc_pad(filtered_summaries, n_words = 150, filler_word = "STRONGCAT") #this is pretty fragile
     
     #4. create a matrix with the words
-    x <- positionize_sequences(sequences = trunc_fill_words, allowed_words = allowed_words, filler_word = "STRONGCAT", text_length = 150) 
+    x <- vectorize_sequences(sequences = trunc_fill_words, allowed_words = allowed_words, filler_word = "STRONGCAT") 
     
     #predict
     prediction <- model %>% predict(x)
