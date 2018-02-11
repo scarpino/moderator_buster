@@ -3,6 +3,9 @@
 #libraries
 library(keras)
 
+#global parameters
+data_set <- "equalize_17" #switch to 10k17 to get the earlier, 10k data set
+
 #acc functions
 remove_punc <- function(x, reg_ex = '[[:punct:]]'){
   x_out <- gsub(reg_ex,'',x)
@@ -65,13 +68,30 @@ get_max <- function(x){
 }
 
 #data
-load("../data/1518093618.77705arxiv_2017_10k.RData")
+data_set <- "equalize_17" #switch to 10k17 to get the earlier, 10k data set
+if(data_set == "10k17"){
+  load("../data/1518093618.77705arxiv_2017_10k.RData")
+  arxiv_raw <- arxiv_2017_10k
+}else{
+  if(data_set == "equalize_17"){
+    load("../data/1518380587.94836_arxiv_2017_equalize.RData")
+    arxiv_raw <- data.frame(NA, NA)
+    colnames(arxiv_raw) <- c("primary_categories_i", "summaries_i")
+    for(i in 1:length(arxiv_2017_equalize)){
+      arxiv_raw <- rbind(arxiv_raw, arxiv_2017_equalize[[i]][,c("primary_categories_i", "summaries_i")])
+    }
+    colnames(arxiv_raw) <- c("primary_categories", "summaries") #I know this is lazy
+  }else{
+    stop("Data set not supported")
+  }
+}
+
 
 #let's do some lazy pre-processing
 #1. remove punctuation
-summaries_no_punc <- rep(NA, length(arxiv_2017_10k$summaries))
-for(i in 1:nrow(arxiv_2017_10k)){
-  no_new_line.i <- remove_punc(as.character(arxiv_2017_10k$summaries[i]), reg_ex = "\n") #note as.character because of forgetting factors earlier
+summaries_no_punc <- rep(NA, length(arxiv_raw$summaries))
+for(i in 1:nrow(arxiv_raw)){
+  no_new_line.i <- remove_punc(as.character(arxiv_raw$summaries[i]), reg_ex = "\n") #note as.character because of forgetting factors earlier
   no_new_line_no_punc.i <- remove_punc(no_new_line.i, reg_ex = '[[:punct:]]')
   summaries_no_punc[i] <- no_new_line_no_punc.i
 }
@@ -98,24 +118,25 @@ for(i in 1:length(filtered_summaries)){
 }
 
 #4. Create y categories
-y_raw <- as.character(arxiv_2017_10k$primary_categories)
+y_raw <- as.character(arxiv_raw$primary_categories)
 y_use_list <- lapply(X = y_raw, FUN = make_categories)
 y_use <- unlist(y_use_list) 
+possible_categories <- unique(y_use)
 
 #5. split into training/testing and create a matrix with the words
 use_train <- sample(1:length(trunc_fill_words), length(trunc_fill_words)*0.8)
 
 x_train <- vectorize_sequences(sequences = trunc_fill_words[use_train], allowed_words = allowed_words, filler_word = "STRONGCAT") #this throws away a lot of information and won't allow for convolutions. Should fix later
-y_train <- vectorize_sequences(sequences = y_use[use_train], allowed_words = unique(y_use), filler_word = NULL)
+y_train <- vectorize_sequences(sequences = y_use[use_train], allowed_words = possible_categories, filler_word = NULL)
 
 x_test <- vectorize_sequences(sequences = trunc_fill_words[-use_train], allowed_words = allowed_words, filler_word = "STRONGCAT") 
-y_test <- vectorize_sequences(sequences = y_use[-use_train], allowed_words = unique(y_use), filler_word = NULL)
+y_test <- vectorize_sequences(sequences = y_use[-use_train], allowed_words = possible_categories, filler_word = NULL)
 
 #here we go
 model <- keras_model_sequential() %>% 
   layer_dense(units = 16, activation = "relu", input_shape = c(15001)) %>% 
   layer_dense(units = 16, activation = "relu") %>% 
-  layer_dense(units = 20, activation = "softmax")
+  layer_dense(units = 22, activation = "softmax")
 
 model %>% compile(
   optimizer = "rmsprop",
@@ -149,9 +170,10 @@ pred_conf <- table(true_val, pred_val)
 #prop_cor <- diag(pred_conf)/colSums(y_test)
 rich_cor <- t(pred_oos) %*% y_test
 rich_prop_cor <- diag(rich_cor)/colSums(y_test) 
+barplot(rich_prop_cor[order(rich_prop_cor, decreasing = TRUE)], names = possible_categories[order(rich_prop_cor, decreasing = TRUE)], ylim = c(0,1), ylab = "OOS Accuracy", main = "OOS Accuracy by category", las = 2, cex.names = 0.8)
 
 #saving model
-save_model_hdf5(model, filepath = "../models/arxiv_2017_10k", overwrite = TRUE, include_optimizer = TRUE)
+save_model_hdf5(model, filepath = "../models/arxiv_raw", overwrite = TRUE, include_optimizer = TRUE)
 
 save(x_test, file = "../moderator_buster/x_test.RData")
 save(y_test, file = "../moderator_buster/y_test.RData")
