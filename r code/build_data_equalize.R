@@ -2,39 +2,47 @@
 
 #libraries
 library(XML)
+library(httr)
 
 #acc functions
 get_field <- function(x, field_name){
   return(x[[which(names(x) == field_name)]])
 }
 
-#iterating over entries
-starts <- seq(0, (300000-1000), length.out = 300)
-xml_data <- list()
-for(i in starts){
-  print(i)
-  xml_call <- paste0("http://export.arxiv.org/api/query?search_query=all:the&start=", i, "&max_results=1000&sortBy=submittedDate&sortOrder=descending")
-  data.i <- try(xmlParse("http://export.arxiv.org/oai2?verb=ListRecords&from=2017-01-01&metadataPrefix=arXivRaw&set=physics"), silent = TRUE)
-  if(is(data.i)[1] == "try-error"){
-    next
-  }
-  xml_data.i <- xmlToList(data.i)
-  xml_data <- c(xml_data, xml_data.i)
-  Sys.sleep(3) #need to pause for 3 sec. as per arXiv API documentation
+#getting categories
+categories_xml <- xmlParse("http://export.arxiv.org/oai2?verb=ListSets")
+categories_raw <- xmlToList(categories_xml)
+categories <- c()
+for(i in 1:length(categories_raw$ListSets)){
+  categories <- c(categories, categories_raw$ListSets[[i]]$setSpec)
 }
 
+#iterating over entries
+arxiv_2017_equalize <- list()
+for(i in categories){
+  print(i)
+  xml_call <- paste0("http://export.arxiv.org/oai2?verb=ListRecords&from=2017-01-01&metadataPrefix=arXivRaw&set=",i)
+  raw_results_i <- GET(url = xml_call)
+  text_results_i <- rawToChar(raw_results_i$content)
+  xml_data_raw.i <- xmlToList(text_results_i)
+  full_entries.i <- xml_data_raw.i$ListRecords
+  
+  primary_categories_i <- rep(NA, (length(full_entries.i)-1))#last entry is just meta data
+  summaries_i <- primary_categories_i
+  full_categories_i <- primary_categories_i
+  
+  for(j in 1:(length(full_entries.i)-1)){ #last entry is just meta data
+    primary_categories_i[j] <- full_entries.i[[j]]$header$setSpec
+    summaries_i[j] <- full_entries.i[[j]]$metadata$arXivRaw$abstract
+    full_categories_i[j] <- full_entries.i[[j]]$metadata$arXivRaw$categories
+  }
+  
+  #dataframe and saving
+  arxiv_2017_i<- data.frame(primary_categories_i, summaries_i, full_categories_i)
+  
+  arxiv_2017_equalize[[i]] <- arxiv_2017_i
+  
+  Sys.sleep(10) #need to pause for 10 sec. as per arXiv API documentation
+}
 
-#extract category
-entries <- which(names(xml_data) == "entry") #some meta data at the begining 
-full_entries <- xml_data[entries]
-
-primary_categories_list <- lapply(full_entries, FUN = get_field, field_name = "primary_category")
-primary_categories_unlist <- unlist(primary_categories_list)
-primary_categories <- primary_categories_unlist[which(names(primary_categories_unlist) == "entry.term")]
-
-#extract summary
-summaries_list <- lapply(full_entries, FUN = get_field, field_name = "summary")
-summaries <- unlist(summaries_list)
-
-#dataframe and saving
-arxiv_2017_10k <- data.frame(primary_categories, summaries)
+save(arxiv_2017_equalize, file = paste0("../data/", as.numeric(Sys.time()), "_arxiv_2017_equalize.RData"))
