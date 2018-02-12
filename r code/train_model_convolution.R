@@ -10,13 +10,13 @@ library(keras)
 data_set <- "equalize_17" #switch to 10k17 to get the earlier, 10k data set
 make_equal <- FALSE #sample with replacement to get equal numbers of categories
 text_length <- 150 #this is the total number of words required in the abstract (will trunc/fill to this number)
-max_features <- 15000
+max_features <- 25000
 batch_size <- 512
-embedding_dims <- 150
+embedding_dims <- 250
 hidden_dims <- 150
-filters <- 250
-kernel_size <- 3
-epochs <- 10
+filters <- 500
+kernel_size <- 4
+epochs <- 12
 layer_drop <- 0.2
 
 #acc functions
@@ -113,6 +113,11 @@ if(data_set == "10k17"){
 }
 
 #let's do some lazy pre-processing
+#0. Remove NA categories
+rm_na <- which(is.na(arxiv_raw$primary_categories) == TRUE)
+if(length(rm_na) > 0){
+  arxiv_raw <- arxiv_raw[-rm_na,]
+}
 
 #1. remove punctuation
 summaries_no_punc <- rep(NA, length(arxiv_raw$summaries))
@@ -127,7 +132,7 @@ corpus_words_list <- lapply(summaries_no_punc, extract_words)
 corpus_words <- unlist(corpus_words_list)
 word_counts <- table(corpus_words)
 if(length(word_counts) > max_features){
-  allowed_words <- names(word_counts[order(word_counts, decreasing = TRUE)])[1:max_features]
+  allowed_words <- names(word_counts[order(word_counts, decreasing = TRUE)])[20:(max_features+19)]
 }else{
   allowed_words <- names(word_counts)
 }
@@ -230,15 +235,15 @@ rich_prop_cor <- diag(rich_cor)/colSums(y_test)
 barplot(rich_prop_cor[order(rich_prop_cor, decreasing = TRUE)], names = possible_categories[order(rich_prop_cor, decreasing = TRUE)], ylim = c(0,1), ylab = "OOS Accuracy", main = "OOS Accuracy by category", las = 2, cex.names = 0.8)
 
 #saving model
-save_model_hdf5(model, filepath = "../models/arxiv_raw", overwrite = TRUE, include_optimizer = TRUE)
+save_model_hdf5(model, filepath = "../models/arxiv_raw_convo", overwrite = TRUE, include_optimizer = TRUE)
 
 #saving files for r shiny
-save_model_hdf5(model, filepath = "../moderator_buster/arxiv_raw", overwrite = TRUE, include_optimizer = TRUE)
+save_model_hdf5(model, filepath = "../moderator_buster/arxiv_raw_convo", overwrite = TRUE, include_optimizer = TRUE)
 
-save(x_test, file = "../moderator_buster/x_test.RData")
-save(y_test, file = "../moderator_buster/y_test.RData")
-save(results_oos, file = "../moderator_buster/results_OOS.RData")
-save(rich_prop_cor, file = "../moderator_buster/rich_prop_cor.RData")
+save(x_test, file = "../moderator_buster/x_test_convo.RData")
+save(y_test, file = "../moderator_buster/y_test_convo.RData")
+save(results_oos, file = "../moderator_buster/results_OOS_convo.RData")
+save(rich_prop_cor, file = "../moderator_buster/rich_prop_cor_convo.RData")
 
-save(possible_categories, file = "../moderator_buster/possible_categories.RData")
-save(allowed_words, file = "../moderator_buster/allowed_words.RData")
+save(possible_categories, file = "../moderator_buster/possible_categories_convo.RData")
+save(allowed_words, file = "../moderator_buster/allowed_words_convo.RData")

@@ -62,7 +62,7 @@ vectorize_sequences <- function(sequences, allowed_words, filler_word) {
 }
 
 #code
-model <- load_model_hdf5("arxiv_2017_10k", custom_objects = NULL, compile = TRUE)
+model <- load_model_hdf5("arxiv_raw", custom_objects = NULL, compile = TRUE)
 load("possible_categories.RData")
 load("allowed_words.RData")
 load("rich_prop_cor.RData")
@@ -77,7 +77,13 @@ shinyServer(function(input, output) {
   })
   
   output$plot2 <- renderPlot({
-    barplot(rich_prop_cor[order(rich_prop_cor, decreasing = TRUE)], names = possible_categories[order(rich_prop_cor, decreasing = TRUE)], ylim = c(0,1), ylab = "OOS Accuracy", main = "OOS Accuracy by category", las = 2, cex.names = 0.8)
+    names_full <- possible_categories[order(rich_prop_cor, decreasing = TRUE)]
+    names_trunc <- rep(NA, length(names_full))
+    for(i in 1:length(names_full)){
+      names_i <- unlist(strsplit(names_full[i], ":"))
+      names_trunc[i] <- names_i[length(names_i)]
+    }
+    barplot(rich_prop_cor[order(rich_prop_cor, decreasing = TRUE)], names = names_trunc, ylim = c(0,1), ylab = "OOS Accuracy", main = "OOS Accuracy by category", las = 2, cex.names = 0.8)
   })
   
   template_selection_results <- eventReactive(input$Submit, {
@@ -111,7 +117,7 @@ shinyServer(function(input, output) {
       names_i <- unlist(strsplit(names_full[i], ":"))
       names_trunc[i] <- names_i[length(names_i)]
     }
-    barplot(predictions[order(predictions, decreasing = TRUE)], names = , las = 2, ylab = "Proportion fit to category", main = "arXiv Category Classification")
+    barplot(predictions[order(predictions, decreasing = TRUE)], names = names_trunc, las = 2, ylab = "Proportion fit to category", main = "arXiv Category Classification")
   })
   
   output$results_text <- renderText({
