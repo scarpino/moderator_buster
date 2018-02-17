@@ -5,10 +5,10 @@ library(keras)
 
 #global parameters
 data_set <- "equalize_17" #switch to 10k17 to get the earlier, 10k data set
-max_features <- 25000
+max_features <- 10000
 epochs <- 10
-batch_size <- 500
-layer_drop <- 0.2
+batch_size <- 200
+layer_drop <- 0.4
 
 #acc functions
 remove_punc <- function(x, reg_ex = '[[:punct:]]'){
@@ -82,7 +82,16 @@ if(data_set == "10k17"){
     arxiv_raw <- data.frame(NA, NA)
     colnames(arxiv_raw) <- c("primary_categories_i", "summaries_i")
     for(i in 1:length(arxiv_2017_equalize)){
-      arxiv_raw <- rbind(arxiv_raw, arxiv_2017_equalize[[i]][,c("primary_categories_i", "summaries_i")])
+      summaries_i <- as.character(arxiv_2017_equalize[[i]]$summaries_i)
+      #primary_categories_i <- as.character(arxiv_2017_equalize[[i]]$primary_categories_i) #these seem to be inaccurate
+      primary_categories_raw_i <- as.character(arxiv_2017_equalize[[i]]$full_categories_i)
+      primary_categories_i <- rep(NA, length(primary_categories_raw_i))
+      for(j in 1:length(primary_categories_raw_i)){
+        primary_categories_i.j <- strsplit(primary_categories_raw_i[j], "[ ]")[[1]][1]
+        primary_categories_i.j.split <-  strsplit(primary_categories_i.j, "[.]")[[1]][1]
+        primary_categories_i[j] <- primary_categories_i.j.split
+      }
+      arxiv_raw <- rbind(arxiv_raw, data.frame(summaries_i,primary_categories_i))
     }
     colnames(arxiv_raw) <- c("primary_categories", "summaries") #I know this is lazy
   }else{
@@ -111,7 +120,7 @@ corpus_words_list <- lapply(summaries_no_punc, extract_words)
 corpus_words <- unlist(corpus_words_list)
 word_counts <- table(corpus_words)
 if(length(word_counts) > max_features){
-  allowed_words <- names(word_counts[order(word_counts, decreasing = TRUE)])[20:(max_features+19)]
+  allowed_words <- names(word_counts[order(word_counts, decreasing = TRUE)])[10:(max_features+9)]
 }else{
   allowed_words <- names(word_counts)
 }
@@ -182,6 +191,7 @@ pred_conf <- table(true_val, pred_val)
 #prop_cor <- diag(pred_conf)/colSums(y_test)
 rich_cor <- t(pred_oos) %*% y_test
 rich_prop_cor <- diag(rich_cor)/colSums(y_test) 
+cat_dist_test <- colSums(y_test)
 barplot(rich_prop_cor[order(rich_prop_cor, decreasing = TRUE)], names = possible_categories[order(rich_prop_cor, decreasing = TRUE)], ylim = c(0,1), ylab = "OOS Accuracy", main = "OOS Accuracy by category", las = 2, cex.names = 0.8)
 results
 
@@ -195,6 +205,7 @@ save(x_test, file = "../moderator_buster/x_test.RData")
 save(y_test, file = "../moderator_buster/y_test.RData")
 save(results_oos, file = "../moderator_buster/results_OOS.RData")
 save(rich_prop_cor, file = "../moderator_buster/rich_prop_cor.RData")
+save(cat_dist_test, file = "../moderator_buster/cat_dist_test.RData")
 
 possible_categories <- unique(y_use)
 save(possible_categories, file = "../moderator_buster/possible_categories.RData")

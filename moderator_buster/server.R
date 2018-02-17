@@ -67,6 +67,7 @@ load("possible_categories.RData")
 load("allowed_words.RData")
 load("rich_prop_cor.RData")
 load("results_OOS.RData")
+load("cat_dist_test.RData")
 
 shinyServer(function(input, output) {
   
@@ -83,7 +84,12 @@ shinyServer(function(input, output) {
       names_i <- unlist(strsplit(names_full[i], ":"))
       names_trunc[i] <- names_i[length(names_i)]
     }
-    barplot(rich_prop_cor[order(rich_prop_cor, decreasing = TRUE)], names = names_trunc, ylim = c(0,1), ylab = "OOS Accuracy", main = "OOS Accuracy by category", las = 2, cex.names = 0.8)
+    cols <- colorRampPalette(colors = c("#fff7fb", "#74a9cf", "#023858"))
+    colors <- cols(100)
+    layout(matrix(1:2, ncol = 1))
+    par(mar = c(5, 4, 1, 2))
+    barplot(rich_prop_cor[order(rich_prop_cor, decreasing = TRUE)], names = names_trunc, ylim = c(0,1), ylab = "OOS Accuracy", main = " ", las = 2, cex.names = 0.8, col = colors[rich_prop_cor[order(rich_prop_cor, decreasing = TRUE)]*100])
+    barplot(cat_dist_test[order(rich_prop_cor, decreasing = TRUE)], names = names_trunc, ylab = "Abstracts in out-sample", main = " ", las = 2, cex.names = 0.8, col = colors[rich_prop_cor[order(rich_prop_cor, decreasing = TRUE)]*100])
   })
   
   template_selection_results <- eventReactive(input$Submit, {
@@ -117,7 +123,9 @@ shinyServer(function(input, output) {
       names_i <- unlist(strsplit(names_full[i], ":"))
       names_trunc[i] <- names_i[length(names_i)]
     }
-    barplot(predictions[order(predictions, decreasing = TRUE)], names = names_trunc, las = 2, ylab = "Proportion fit to category", main = "arXiv Category Classification")
+    cols <- colorRampPalette(colors = c("#fff7ec", "#fc8d59", "#7f0000"))
+    colors <- cols(100)
+    barplot(predictions[order(predictions, decreasing = TRUE)], names = names_trunc, las = 2, ylab = "Proportion fit to category", main = "arXiv Category Classification", ylim = c(0,1), col = colors[rich_prop_cor[order(rich_prop_cor, decreasing = TRUE)]*100])
   })
   
   output$results_text <- renderText({
